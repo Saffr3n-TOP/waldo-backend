@@ -47,7 +47,13 @@ exports.checkPolygon = async (req, res, next) => {
   }
 
   if (req.session.polygons[req.params.id].isFound) {
-    return next(createError(400, 'Polygon was already located'));
+    return res.status(200).json({
+      data: {
+        message: 'It was already found. Keep going!',
+        start: req.session.start,
+        polygons: req.session.polygons
+      }
+    });
   }
 
   const polygon = await Polygon.findById(req.params.id)
@@ -79,7 +85,13 @@ exports.checkPolygon = async (req, res, next) => {
   }
 
   if (!isPointInPolygon([x, y], polygon.vertices)) {
-    return next(createError(400, 'Point is not inside polygon'));
+    return res.status(200).json({
+      data: {
+        message: 'Nope... Keep trying!',
+        start: req.session.start,
+        polygons: req.session.polygons
+      }
+    });
   }
 
   req.session.polygons[req.params.id].isFound = true;
@@ -94,7 +106,7 @@ exports.checkPolygon = async (req, res, next) => {
 
     res.status(200).json({
       data: {
-        message: 'All polygons were located',
+        message: 'You win!',
         start: req.session.start,
         end: req.session.end
       }
@@ -106,7 +118,7 @@ exports.checkPolygon = async (req, res, next) => {
 
   res.status(200).json({
     data: {
-      message: 'Polygon successfully located',
+      message: 'Correct! Keep it up!',
       start: req.session.start,
       polygons: req.session.polygons
     }
