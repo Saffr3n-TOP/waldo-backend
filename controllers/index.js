@@ -1,6 +1,7 @@
 const createError = require('http-errors');
 const isPointInPolygon = require('../utils/isPointInPolygon');
 const Polygon = require('../models/polygon');
+const Leader = require('../models/leader');
 
 /**
  * @param {import("express").Request} req
@@ -104,16 +105,13 @@ exports.checkPolygon = async (req, res, next) => {
     req.session.polygons = null;
     req.session.end = Date.now();
 
-    res.status(200).json({
+    return res.status(200).json({
       data: {
         message: 'You win!',
         start: req.session.start,
         end: req.session.end
       }
     });
-
-    req.session = null;
-    return;
   }
 
   res.status(200).json({
@@ -122,5 +120,56 @@ exports.checkPolygon = async (req, res, next) => {
       start: req.session.start,
       polygons: req.session.polygons
     }
+  });
+};
+
+/**
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ * @param {import("express").NextFunction} next
+ */
+exports.leaderboardGet = async (req, res, next) => {
+  const leaders = await Leader.find()
+    .sort({ time: 1 })
+    .exec()
+    .catch((err) => createError(500, err));
+
+  if (leaders instanceof Error) {
+    return next(createError(leaders));
+  }
+
+  res.status(200).json({
+    message: 'Leaderboard successfully retrieved',
+    leaders
+  });
+};
+
+/**
+ * @param {import("express").Request} req
+ * @param {import("express").Response} res
+ * @param {import("express").NextFunction} next
+ */
+exports.leaderboardPost = async (req, res, next) => {
+  if (!req.session.end) {
+    return next(createError(401, 'Complete the game first'));
+  }
+
+  if (!req.body.name) {
+    return next(createError(400, 'Provide a username please'));
+  }
+
+  const leader = new Leader({
+    name: req.body.name,
+    time: req.session.end - req.session.start
+  });
+
+  const saved = await leader.save().catch((err) => createError(500, err));
+
+  if (saved instanceof Error) {
+    return next(saved);
+  }
+
+  res.status(200).json({
+    message: 'Leaderboard successfully updated'
   });
 };
